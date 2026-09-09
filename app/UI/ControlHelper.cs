@@ -240,7 +240,7 @@ public static class ControlHelper
     {
         if (Math.Abs(scale - 1) < 0.1) return image;
 
-        string key = $"resize_{Runtime.CompilerServices.RuntimeHelpers.GetHashCode(image)}_{image.Width}x{image.Height}_{scale:F2}_v{_cacheVersion}";
+        string key = $"resize_{System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(image)}_{image.Width}x{image.Height}_{scale:F2}_v{_cacheVersion}";
         if (TryGetCached(key, out var cached)) return cached;
 
         var newSize = new Size((int)(image.Width * scale), (int)(image.Height * scale));
@@ -317,7 +317,7 @@ public static class ControlHelper
 
     private static Image AdjustImage(Image image)
     {
-        string key = $"invert_{Runtime.CompilerServices.RuntimeHelpers.GetHashCode(image)}_{image.Width}x{image.Height}_v{_cacheVersion}";
+        string key = $"invert_{System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(image)}_{image.Width}x{image.Height}_v{_cacheVersion}";
         if (TryGetCached(key, out var cached)) return cached;
 
         var pic = new Bitmap(image.Width, image.Height);
@@ -334,7 +334,7 @@ public static class ControlHelper
 
     public static Image TintImage(Image image, Color tintColor)
     {
-        string key = $"tint_{Runtime.CompilerServices.RuntimeHelpers.GetHashCode(image)}_{tintColor.ToArgb()}_v{_cacheVersion}";
+        string key = $"tint_{System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(image)}_{tintColor.ToArgb()}_v{_cacheVersion}";
         if (TryGetCached(key, out var cached)) return cached;
 
         var pic = new Bitmap(image);
@@ -354,7 +354,7 @@ public static class ControlHelper
 
     public static Image RecolorDarkPixels(Image image, Color targetColor, byte luminanceThreshold = 128)
     {
-        string key = $"recolor_{Runtime.CompilerServices.RuntimeHelpers.GetHashCode(image)}_{targetColor.ToArgb()}_{luminanceThreshold}_v{_cacheVersion}";
+        string key = $"recolor_{System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(image)}_{targetColor.ToArgb()}_{luminanceThreshold}_v{_cacheVersion}";
         if (TryGetCached(key, out var cached)) return cached;
 
         var pic = new Bitmap(image);
@@ -380,7 +380,7 @@ public static class ControlHelper
         int iw = iconWidth ?? baseImage.Width;
         int ih = iconHeight ?? baseImage.Height;
 
-        string key = $"badge_{Runtime.CompilerServices.RuntimeHelpers.GetHashCode(baseImage)}_{Runtime.CompilerServices.RuntimeHelpers.GetHashCode(badge)}_{circleColor.ToArgb()}_{badgeScale:F2}_{shiftFraction:F2}_{iw}x{ih}_v{_cacheVersion}";
+        string key = $"badge_{System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(baseImage)}_{System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(badge)}_{circleColor.ToArgb()}_{badgeScale:F2}_{shiftFraction:F2}_{iw}x{ih}_v{_cacheVersion}";
         if (TryGetCached(key, out var cached)) return cached;
 
         int badgeSize = (int)(iw * badgeScale);
@@ -414,7 +414,7 @@ public static class ControlHelper
         int iw = iconWidth ?? baseImage.Width;
         int ih = iconHeight ?? baseImage.Height;
 
-        string key = $"bars_{Runtime.CompilerServices.RuntimeHelpers.GetHashCode(baseImage)}_{level}_{max}_{color.ToArgb()}_{iw}x{ih}_v{_cacheVersion}";
+        string key = $"bars_{System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(baseImage)}_{level}_{max}_{color.ToArgb()}_{iw}x{ih}_v{_cacheVersion}";
         if (TryGetCached(key, out var cached)) return cached;
 
         float s = iw / 48f;
