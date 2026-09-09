@@ -43,9 +43,37 @@ namespace GHelper.UI
         public RForm()
         {
             // Reduce flicker / progressive paint: double-buffer whole form
+            // Pre-fill with dark background BEFORE handle created to avoid white DWM surface flash (grey-black app shows white holes)
+            var earlyDark = IsDarkTheme();
+            BackColor = earlyDark ? Color.FromArgb(255, 28, 28, 28) : SystemColors.Control;
+            ForeColor = earlyDark ? Color.FromArgb(255, 240, 240, 240) : SystemColors.ControlText;
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
             DoubleBuffered = true;
             UpdateStyles();
+        }
+
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            // Set immersive dark title bar BEFORE visible to avoid white title flash
+            try
+            {
+                bool isDark = darkTheme || IsDarkTheme();
+                DwmSetWindowAttribute(Handle, 20, new[] { isDark ? 1 : 0 }, 4);
+            }
+            catch { }
+            base.OnHandleCreated(e);
+        }
+
+        protected override void WndProc(ref Message m)
+        {
+            // Suppress WM_ERASEBKGND white fill - we paint entire background in OnPaint/DoubleBuffered
+            // This removes the jarring white boxes flash before dark theme applied
+            if (m.Msg == 0x0014) // WM_ERASEBKGND
+            {
+                m.Result = (IntPtr)1;
+                return;
+            }
+            base.WndProc(ref m);
         }
 
         protected override CreateParams CreateParams

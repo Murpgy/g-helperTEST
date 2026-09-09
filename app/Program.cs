@@ -48,6 +48,25 @@ namespace GHelper
         {
             Application.SetHighDpiMode(HighDpiMode.SystemAware);
 
+            // .NET 10 native dark mode: set before ANY control is created to avoid white DWM surface flash.
+            // Must be before new SettingsForm(). System mode follows Windows, Dark forces dark.
+            try
+            {
+                // Read ui_mode early (AppConfig loads on first GetString)
+                string? uiMode = AppConfig.GetString("ui_mode")?.ToLower();
+                SystemColorMode colorMode = uiMode switch
+                {
+                    "dark" => SystemColorMode.Dark,
+                    "light" => SystemColorMode.Classic,
+                    "windows" => SystemColorMode.System,
+                    _ => SystemColorMode.System
+                };
+                // Only on Win11 (22000+) - on Win10 classic fallback
+                if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000))
+                    Application.SetColorMode(colorMode);
+            }
+            catch { /* ignore on older .NET or Win10 */ }
+
             AppDomain.CurrentDomain.UnhandledException += (s, e) => Logger.WriteLine("Unhandled: " + e.ExceptionObject);
             TaskScheduler.UnobservedTaskException += (s, e) => { Logger.WriteLine("Unobserved: " + e.Exception); e.SetObserved(); };
 
