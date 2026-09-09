@@ -470,8 +470,8 @@ namespace GHelper
                     settingsForm.PerformLayout();
                 }
 
-                // Defer heavy visual refresh one frame so paint can complete atomically (composited buffer)
-                settingsForm.BeginInvoke(new Action(() => settingsForm.VisualiseGPUMode()));
+                // Sync refresh - deferred BeginInvoke caused blue background -> delayed content flash
+                settingsForm.VisualiseGPUMode();
             }
         }
 

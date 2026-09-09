@@ -54,10 +54,11 @@ namespace GHelper.UI
             {
                 var parms = base.CreateParams;
                 // Keep WS_CLIPCHILDREN (0x02000000) - prevents parent from over-painting child areas
+                // This alone fixes most progressive bottom-up tear without composited delay.
                 parms.Style |= 0x02000000;
-                // WS_EX_COMPOSITED (0x02000000) double-buffers all children in off-screen buffer -> no bottom-up tear.
-                // Safe for this form: no MDI, not layered. Disable if you see TopMost flicker on some drivers.
-                parms.ExStyle |= 0x02000000;
+                // WS_EX_COMPOSITED removed: caused blue background delay + full 2075px off-screen buffer
+                // causing blank bottom area and visible two-phase paint (background then children).
+                // DoubleBuffered on form + children is enough; composited is overkill for this Tall form.
                 parms.ClassStyle &= ~0x00020000; // CS_DROPSHADOW off
                 return parms;
             }

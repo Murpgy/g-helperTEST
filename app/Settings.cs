@@ -64,13 +64,9 @@ namespace GHelper
             // Suspend layout during heavy init: prevents 13x TableLayoutPanel measure on every property set
             SuspendLayout();
             InitializeComponent();
-            // Override Designer AutoSize/GrowAndShrink which forces 2075px full measure on every Show() under high CPU.
-            // Keep visual but allow scrolling instead of forcing full height layout pass.
-            // Designer sets AutoSize=true which together with Dock.Top causes O(n^2) layout. We keep it false at runtime.
-            AutoSize = false;
-            AutoScroll = true;
-            // Keep DPI scaling but avoid re-measuring off-screen panels every frame
-            DoubleBuffered = true;
+            // Keep Designer AutoSize=true (shrinks to visible panels, no blank bottom). Previous fix set AutoSize=false
+            // which left fixed 2075px ClientSize -> blank room when panels like Ally/RearLight hidden.
+            // DoubleBuffered is already set by RForm.
             InitTheme(true);
 
             gpuControl = new GPUModeControl(this);
