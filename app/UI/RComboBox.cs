@@ -238,15 +238,26 @@ namespace GHelper.UI
 
                 var rgn = CreateRectRgn(innerInnerBorder.Left, innerInnerBorder.Top,
                     innerInnerBorder.Right, innerInnerBorder.Bottom);
-
-                SelectClipRgn(dc, rgn);
-                DefWndProc(ref m);
-                DeleteObject(rgn);
+                try
+                {
+                    SelectClipRgn(dc, rgn);
+                    DefWndProc(ref m);
+                }
+                finally
+                {
+                    DeleteObject(rgn);
+                }
                 // Reset clip to entire client area before custom border draw
                 rgn = CreateRectRgn(clientRect.Left, clientRect.Top,
                     clientRect.Right, clientRect.Bottom);
-                SelectClipRgn(dc, rgn);
-                DeleteObject(rgn);
+                try
+                {
+                    SelectClipRgn(dc, rgn);
+                }
+                finally
+                {
+                    DeleteObject(rgn);
+                }
 
                 using (var g = Graphics.FromHdc(dc))
                 {

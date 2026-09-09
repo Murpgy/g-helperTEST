@@ -749,7 +749,7 @@ namespace GHelper
 
         public void VisualiseMatrixPicture(string image)
         {
-            if (matrixForm == null || matrixForm.Text == "") return;
+            if (matrixForm == null || matrixForm.IsDisposed || string.IsNullOrEmpty(matrixForm.Text)) return;
             matrixForm.VisualiseMatrix(image);
         }
 
@@ -1127,7 +1127,7 @@ namespace GHelper
             VisualiseMatrixRunning(mode);
             AppConfig.Set("matrix_running", mode);
             matrixControl.SetDevice();
-            if (!matrixControl.IsSlash && matrixForm != null && matrixForm.Text != "") matrixForm.VisualiseMode();
+            if (!matrixControl.IsSlash && matrixForm != null && !matrixForm.IsDisposed && !string.IsNullOrEmpty(matrixForm.Text)) matrixForm.VisualiseMode();
         }
 
         private void ComboMatrixRunning_SelectedValueChanged(object? sender, EventArgs e)
@@ -1175,13 +1175,13 @@ namespace GHelper
 
         public void FansInit()
         {
-            if (fansForm == null || fansForm.Text == "") return;
+            if (fansForm == null || fansForm.IsDisposed || string.IsNullOrEmpty(fansForm.Text)) return;
             Invoke(fansForm.InitAll);
         }
 
         public void GPUInit()
         {
-            if (fansForm == null || fansForm.Text == "") return;
+            if (fansForm == null || fansForm.IsDisposed || string.IsNullOrEmpty(fansForm.Text)) return;
             Invoke(fansForm.InitGPU);
         }
 

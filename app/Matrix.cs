@@ -69,6 +69,21 @@ namespace GHelper
 
             Shown += Matrix_Shown;
             FormClosing += Matrix_FormClosed;
+            // Keep-alive for weeks: hide not close via tray HideAll - pause timers/USB traffic when hidden
+            VisibleChanged += (s, e) =>
+            {
+                if (!Visible)
+                {
+                    textTimer?.Stop();
+                    clockTimer?.Stop();
+                    dragTimer?.Stop();
+                    if (matrixControl?.deviceMatrix != null) matrixControl.deviceMatrix.OnPresent = null;
+                }
+                else
+                {
+                    if (matrixControl?.deviceMatrix != null) matrixControl.deviceMatrix.OnPresent = VisualisePicture;
+                }
+            };
 
             buttonPicture.Click += ButtonPicture_Click;
             buttonReset.Click += ButtonReset_Click;

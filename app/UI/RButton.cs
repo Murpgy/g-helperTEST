@@ -88,7 +88,12 @@ namespace GHelper.UI
 
         protected override void Dispose(bool disposing)
         {
-            if (disposing) _cachedRegion?.Dispose();
+            if (disposing)
+            {
+                _cachedRegion?.Dispose();
+                _cachedRegion = null;
+                Region = null;
+            }
             base.Dispose(disposing);
         }
 

@@ -390,8 +390,9 @@ public static class ControlHelper
         int newH = Math.Max(baseImage.Height, ih + shift);
 
         var pic = new Bitmap(newW, newH);
+        // RecolorDarkPixels is cached - must NOT dispose (would dispose cached HBITMAP and corrupt cache)
+        var coloredBadge = (Bitmap)RecolorDarkPixels(badge, circleColor);
         using (var g = Graphics.FromImage(pic))
-        using (var coloredBadge = (Bitmap)RecolorDarkPixels(badge, circleColor))
         {
             g.InterpolationMode = InterpolationMode.HighQualityBicubic;
             g.SmoothingMode = SmoothingMode.AntiAlias;
