@@ -19,6 +19,32 @@ jobs:
       uses: actions/setup-dotnet@v5
       with:
         dotnet-version: '10.0.x'
-    - name: Build
+    - name: Publish (Release, optimized)
       run: |
-        dotnet build app/GHelper.sln
+        dotnet publish app/GHelper.sln --configuration Release --runtime win-x64 -p:PublishSingleFile=true --no-self-contained -p:DebugType=embedded -p:ContinuousIntegrationBuild=true
+    - name: Verify single-file exe
+      run: |
+        dir app\bin\x64\Release\net10.0-windows\win-x64\publish\
+        $exe = "app\bin\x64\Release\net10.0-windows\win-x64\publish\GHelper.exe"
+        if (!(Test-Path $exe)) { throw "GHelper.exe not found" }
+        $size = (Get-Item $exe).Length
+        Write-Host "GHelper.exe size: $size bytes"
+        # Ensure Release optimizations (no PDBs alongside)
+        if (Test-Path "app\bin\x64\Release\net10.0-windows\win-x64\publish\GHelper.pdb") { Write-Warning "PDB found alongside single-file (embedded expected)" }
+    - name: Create ZIP
+      run: |
+        $pub = "app\bin\x64\Release\net10.0-windows\win-x64\publish"
+        Compress-Archive -Path "$pub\GHelper.exe" -DestinationPath "$pub\GHelper.zip" -Force
+        dir "$pub\GHelper.*"
+    - name: Upload EXE
+      uses: actions/upload-artifact@v4
+      with:
+        name: GHelper-unsigned
+        path: app/bin/x64/Release/net10.0-windows/win-x64/publish/GHelper.exe
+        if-no-files-found: error
+    - name: Upload ZIP
+      uses: actions/upload-artifact@v4
+      with:
+        name: GHelper-zip
+        path: app/bin/x64/Release/net10.0-windows/win-x64/publish/GHelper.zip
+        if-no-files-found: error
