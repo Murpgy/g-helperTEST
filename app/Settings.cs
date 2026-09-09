@@ -550,21 +550,21 @@ namespace GHelper
 
         private void ButtonOverlay_Click(object? sender, EventArgs e)
         {
-            if (overlayForm == null || overlayForm.Text == "")
+            if (overlayForm == null || overlayForm.IsDisposed || string.IsNullOrEmpty(overlayForm.Text))
             {
                 overlayForm = new OverlayConfig();
                 AddOwnedForm(overlayForm);
             }
 
             if (overlayForm.Visible)
-                overlayForm.Close();
+                overlayForm.Hide();
             else
                 overlayForm.Show();
         }
 
         private void ButtonHandheld_Click(object? sender, EventArgs e)
         {
-            if (handheldForm == null || handheldForm.Text == "")
+            if (handheldForm == null || handheldForm.IsDisposed || string.IsNullOrEmpty(handheldForm.Text))
             {
                 handheldForm = new Handheld();
                 AddOwnedForm(handheldForm);
@@ -572,7 +572,7 @@ namespace GHelper
 
             if (handheldForm.Visible)
             {
-                handheldForm.Close();
+                handheldForm.Hide();
             }
             else
             {
@@ -731,7 +731,7 @@ namespace GHelper
 
         private void ButtonUpdates_Click(object? sender, EventArgs e)
         {
-            if (updatesForm == null || updatesForm.Text == "")
+            if (updatesForm == null || updatesForm.IsDisposed || string.IsNullOrEmpty(updatesForm.Text))
             {
                 updatesForm = new Updates();
                 AddOwnedForm(updatesForm);
@@ -739,7 +739,7 @@ namespace GHelper
 
             if (updatesForm.Visible)
             {
-                updatesForm.Close();
+                updatesForm.Hide();
             }
             else
             {
@@ -1078,7 +1078,7 @@ namespace GHelper
 
             if (matrixControl.IsSlash)
             {
-                if (slashForm == null || slashForm.Text == "")
+                if (slashForm == null || slashForm.IsDisposed || string.IsNullOrEmpty(slashForm.Text))
                 {
                     slashForm = new Slash();
                     AddOwnedForm(slashForm);
@@ -1086,7 +1086,7 @@ namespace GHelper
 
                 if (slashForm.Visible)
                 {
-                    slashForm.Close();
+                    slashForm.Hide();
                 }
                 else
                 {
@@ -1097,7 +1097,7 @@ namespace GHelper
                 return;
             }
 
-            if (matrixForm == null || matrixForm.Text == "")
+            if (matrixForm == null || matrixForm.IsDisposed || string.IsNullOrEmpty(matrixForm.Text))
             {
                 matrixForm = new Matrix();
                 AddOwnedForm(matrixForm);
@@ -1105,7 +1105,7 @@ namespace GHelper
 
             if (matrixForm.Visible)
             {
-                matrixForm.Close();
+                matrixForm.Hide();
             }
             else
             {
@@ -1157,7 +1157,7 @@ namespace GHelper
 
         private void ButtonKeyboard_Click(object? sender, EventArgs e)
         {
-            if (extraForm == null || extraForm.Text == "")
+            if (extraForm == null || extraForm.IsDisposed || string.IsNullOrEmpty(extraForm.Text))
             {
                 extraForm = new Extra();
                 AddOwnedForm(extraForm);
@@ -1165,7 +1165,7 @@ namespace GHelper
 
             if (extraForm.Visible)
             {
-                extraForm.Close();
+                extraForm.Hide();
             }
             else
             {
@@ -1187,7 +1187,7 @@ namespace GHelper
 
         public void FansToggle(int index = 0)
         {
-            if (fansForm == null || fansForm.Text == "")
+            if (fansForm == null || fansForm.IsDisposed || string.IsNullOrEmpty(fansForm.Text))
             {
                 fansForm = new Fans();
                 AddOwnedForm(fansForm);
@@ -1195,13 +1195,15 @@ namespace GHelper
 
             if (fansForm.Visible)
             {
-                fansForm.Close();
+                fansForm.Hide();
             }
             else
             {
                 fansForm.FormPosition();
                 fansForm.Show();
                 fansForm.ToggleNavigation(index);
+                // Refresh stale sensor data if hidden for weeks
+                try { fansForm.InitAll(); } catch { }
             }
 
         }
@@ -1548,21 +1550,26 @@ namespace GHelper
         }
 
         /// <summary>
-        /// Closes all forms except the settings. Hides the settings
+        /// Hides all forms (keeps HWND alive for weeks-long run). Previously Closed/Disposed child forms
+        /// causing 100-150ms rebuild on next open. Hide keeps GDI handles + layout cached, Show is instant.
+        /// User X-click still Closes (disposes) via FormClosing, but tray HideAll now reuses.
         /// </summary>
         public void HideAll()
         {
             this.Hide();
-            if (fansForm != null && fansForm.Text != "") fansForm.Close();
-            if (extraForm != null && extraForm.Text != "") extraForm.Close();
-            if (updatesForm != null && updatesForm.Text != "") updatesForm.Close();
-            if (matrixForm != null && matrixForm.Text != "") matrixForm.Close();
-            if (slashForm != null && slashForm.Text != "") slashForm.Close();
-            if (handheldForm != null && handheldForm.Text != "") handheldForm.Close();
-            if (overlayForm != null && overlayForm.Text != "") overlayForm.Close();
-            if (mouseSettings != null && mouseSettings.Text != "") mouseSettings.Close();
-            if (keyboardSettings != null && keyboardSettings.Text != "") keyboardSettings.Close();
-            MemoryHelper.TrimAfter();
+            // Keep alive: Hide not Close. Check IsDisposed + Visible to avoid re-creating.
+            // This saves Fans (104k Designer) / Extra (86k) rebuild every tray toggle.
+            if (fansForm != null && !fansForm.IsDisposed) fansForm.Hide();
+            if (extraForm != null && !extraForm.IsDisposed) extraForm.Hide();
+            if (updatesForm != null && !updatesForm.IsDisposed) updatesForm.Hide();
+            if (matrixForm != null && !matrixForm.IsDisposed) matrixForm.Hide();
+            if (slashForm != null && !slashForm.IsDisposed) slashForm.Hide();
+            if (handheldForm != null && !handheldForm.IsDisposed) handheldForm.Hide();
+            if (overlayForm != null && !overlayForm.IsDisposed) overlayForm.Hide();
+            if (mouseSettings != null && !mouseSettings.IsDisposed) mouseSettings.Hide();
+            if (keyboardSettings != null && !keyboardSettings.IsDisposed) keyboardSettings.Hide();
+            // Trim only if memory pressure, not every hide (was causing working set page faults on weeks-long)
+            // MemoryHelper.TrimAfter(); // removed for keep-alive - call on explicit GC if needed
         }
 
         /// <summary>

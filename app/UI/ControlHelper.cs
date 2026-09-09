@@ -17,8 +17,58 @@ public static class ControlHelper
     public static float Scale => _scale;
     public static bool DarkMode => _darkMode;
 
+    // Image cache for weeks-long run: bounded LRU to avoid GetPixel loops every 1s sensor refresh
+    // Cached bitmaps are GDI HBITMAPs - must be disposed on theme/DPI change or eviction to avoid handle leak
+    private static readonly object _cacheLock = new();
+    private static readonly Dictionary<string, Image> _imageCache = new();
+    private static readonly LinkedList<string> _cacheOrder = new();
+    private const int MaxCacheSize = 96;
+    private static int _cacheVersion = 0;
+
+    public static void ClearImageCache()
+    {
+        lock (_cacheLock)
+        {
+            foreach (var img in _imageCache.Values) try { img.Dispose(); } catch { }
+            _imageCache.Clear();
+            _cacheOrder.Clear();
+            _cacheVersion++;
+        }
+    }
+
+    private static bool TryGetCached(string key, out Image img)
+    {
+        lock (_cacheLock)
+        {
+            return _imageCache.TryGetValue(key, out img);
+        }
+    }
+
+    private static void SetCached(string key, Image img)
+    {
+        lock (_cacheLock)
+        {
+            if (_imageCache.ContainsKey(key)) return;
+            if (_imageCache.Count >= MaxCacheSize)
+            {
+                var oldest = _cacheOrder.First?.Value;
+                if (oldest != null)
+                {
+                    if (_imageCache.TryGetValue(oldest, out var oldImg)) try { oldImg.Dispose(); } catch { }
+                    _imageCache.Remove(oldest);
+                    _cacheOrder.RemoveFirst();
+                }
+            }
+            _imageCache[key] = img;
+            _cacheOrder.AddLast(key);
+        }
+    }
+
     public static void Adjust(RForm container, bool invert = false)
     {
+        // Invalidate image cache on theme switch (foreMain/button colors changed) to avoid stale tinted icons over weeks
+        bool themeChanged = _darkMode != container.darkTheme;
+        if (themeChanged) ClearImageCache();
 
         container.BackColor = RForm.formBack;
         container.ForeColor = RForm.foreMain;
@@ -32,7 +82,10 @@ public static class ControlHelper
 
     public static void Resize(RForm container, float baseScale = 2)
     {
-        _scale = GetDpiScale(container).Value / baseScale;
+        float newScale = GetDpiScale(container).Value / baseScale;
+        bool scaleChanged = Math.Abs(newScale - _scale) > 0.05f;
+        if (scaleChanged) ClearImageCache();
+        _scale = newScale;
         if (Math.Abs(_scale - 1) > 0.2) ResizeControls(container.Controls);
 
     }
@@ -183,6 +236,9 @@ public static class ControlHelper
     {
         if (Math.Abs(scale - 1) < 0.1) return image;
 
+        string key = $"resize_{Runtime.CompilerServices.RuntimeHelpers.GetHashCode(image)}_{image.Width}x{image.Height}_{scale:F2}_v{_cacheVersion}";
+        if (TryGetCached(key, out var cached)) return cached;
+
         var newSize = new Size((int)(image.Width * scale), (int)(image.Height * scale));
         var pic = new Bitmap(newSize.Width, newSize.Height);
 
@@ -191,6 +247,7 @@ public static class ControlHelper
             g.InterpolationMode = InterpolationMode.HighQualityBicubic;
             g.DrawImage(image, new Rectangle(new Point(), newSize));
         }
+        SetCached(key, pic);
         return pic;
     }
 
@@ -256,6 +313,9 @@ public static class ControlHelper
 
     private static Image AdjustImage(Image image)
     {
+        string key = $"invert_{Runtime.CompilerServices.RuntimeHelpers.GetHashCode(image)}_{image.Width}x{image.Height}_v{_cacheVersion}";
+        if (TryGetCached(key, out var cached)) return cached;
+
         var pic = new Bitmap(image.Width, image.Height);
         using (var g = Graphics.FromImage(pic))
         {
@@ -264,11 +324,15 @@ public static class ControlHelper
                 0, 0, image.Width, image.Height,
                 GraphicsUnit.Pixel, _invertAttributes);
         }
+        SetCached(key, pic);
         return pic;
     }
 
     public static Image TintImage(Image image, Color tintColor)
     {
+        string key = $"tint_{Runtime.CompilerServices.RuntimeHelpers.GetHashCode(image)}_{tintColor.ToArgb()}_v{_cacheVersion}";
+        if (TryGetCached(key, out var cached)) return cached;
+
         var pic = new Bitmap(image);
 
         for (int y = 0; (y <= (pic.Height - 1)); y++)
@@ -280,11 +344,15 @@ public static class ControlHelper
             }
         }
 
+        SetCached(key, pic);
         return pic;
     }
 
     public static Image RecolorDarkPixels(Image image, Color targetColor, byte luminanceThreshold = 128)
     {
+        string key = $"recolor_{Runtime.CompilerServices.RuntimeHelpers.GetHashCode(image)}_{targetColor.ToArgb()}_{luminanceThreshold}_v{_cacheVersion}";
+        if (TryGetCached(key, out var cached)) return cached;
+
         var pic = new Bitmap(image);
         for (int y = 0; y < pic.Height; y++)
         {
@@ -297,6 +365,7 @@ public static class ControlHelper
                     pic.SetPixel(x, y, Color.FromArgb(col.A, targetColor));
             }
         }
+        SetCached(key, pic);
         return pic;
     }
 
@@ -306,6 +375,9 @@ public static class ControlHelper
     {
         int iw = iconWidth ?? baseImage.Width;
         int ih = iconHeight ?? baseImage.Height;
+
+        string key = $"badge_{Runtime.CompilerServices.RuntimeHelpers.GetHashCode(baseImage)}_{Runtime.CompilerServices.RuntimeHelpers.GetHashCode(badge)}_{circleColor.ToArgb()}_{badgeScale:F2}_{shiftFraction:F2}_{iw}x{ih}_v{_cacheVersion}";
+        if (TryGetCached(key, out var cached)) return cached;
 
         int badgeSize = (int)(iw * badgeScale);
         int shift = (int)(badgeSize * shiftFraction);
@@ -325,6 +397,7 @@ public static class ControlHelper
             int badgeY = ih - badgeSize + shift;
             g.DrawImage(coloredBadge, badgeX, badgeY, badgeSize, badgeSize);
         }
+        SetCached(key, pic);
         return pic;
     }
 
@@ -335,6 +408,9 @@ public static class ControlHelper
 
         int iw = iconWidth ?? baseImage.Width;
         int ih = iconHeight ?? baseImage.Height;
+
+        string key = $"bars_{Runtime.CompilerServices.RuntimeHelpers.GetHashCode(baseImage)}_{level}_{max}_{color.ToArgb()}_{iw}x{ih}_v{_cacheVersion}";
+        if (TryGetCached(key, out var cached)) return cached;
 
         float s = iw / 48f;
         int barHeight = Math.Max(2, (int)Math.Round(10 * s));
@@ -367,6 +443,7 @@ public static class ControlHelper
                 g.FillRectangle(i < level ? filled : empty, rect);
             }
         }
+        SetCached(key, pic);
         return pic;
     }
 
