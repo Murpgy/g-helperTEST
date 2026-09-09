@@ -18,7 +18,11 @@ public static class ControlHelper
     public static bool DarkMode => _darkMode;
 
     // Image cache for weeks-long run: bounded LRU to avoid GetPixel loops every 1s sensor refresh
-    // Cached bitmaps are GDI HBITMAPs - must be disposed on theme/DPI change or eviction to avoid handle leak
+    // Cached bitmaps are GDI HBITMAPs assigned to Button.Image / PictureBox.BackgroundImage.
+    // Cache does NOT own disposal - controls own lifetime. We just drop reference on eviction/clear
+    // to avoid disposing a bitmap still assigned to a visible button (would cause ObjectDisposed on paint).
+    // Old bitmaps stay alive via control reference until control reassigned/disposed, then GC collects.
+    // Bounded 96 prevents unbounded GDI handle growth over weeks.
     private static readonly object _cacheLock = new();
     private static readonly Dictionary<string, Image> _imageCache = new();
     private static readonly LinkedList<string> _cacheOrder = new();
@@ -29,7 +33,7 @@ public static class ControlHelper
     {
         lock (_cacheLock)
         {
-            foreach (var img in _imageCache.Values) try { img.Dispose(); } catch { }
+            // Do NOT dispose - images may still be assigned to live controls
             _imageCache.Clear();
             _cacheOrder.Clear();
             _cacheVersion++;
@@ -54,7 +58,7 @@ public static class ControlHelper
                 var oldest = _cacheOrder.First?.Value;
                 if (oldest != null)
                 {
-                    if (_imageCache.TryGetValue(oldest, out var oldImg)) try { oldImg.Dispose(); } catch { }
+                    // Do NOT dispose - may still be assigned to a live button (weeks-long visible)
                     _imageCache.Remove(oldest);
                     _cacheOrder.RemoveFirst();
                 }
