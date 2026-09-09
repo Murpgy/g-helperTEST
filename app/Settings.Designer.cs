@@ -204,7 +204,7 @@ namespace GHelper
             // 
             // tableLayoutMatrix
             // 
-            tableLayoutMatrix.AutoSize = true;
+            tableLayoutMatrix.AutoSize = false;
             tableLayoutMatrix.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             tableLayoutMatrix.ColumnCount = 3;
             tableLayoutMatrix.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
@@ -418,7 +418,7 @@ namespace GHelper
             // 
             // tableButtons
             // 
-            tableButtons.AutoSize = true;
+            tableButtons.AutoSize = false;
             tableButtons.ColumnCount = 3;
             tableButtons.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.3333321F));
             tableButtons.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.3333321F));
@@ -528,7 +528,7 @@ namespace GHelper
             // 
             // tablePerf
             // 
-            tablePerf.AutoSize = true;
+            tablePerf.AutoSize = false;
             tablePerf.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             tablePerf.ColumnCount = 4;
             tablePerf.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
@@ -716,7 +716,7 @@ namespace GHelper
             // 
             // tableAMD
             // 
-            tableAMD.AutoSize = true;
+            tableAMD.AutoSize = false;
             tableAMD.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             tableAMD.ColumnCount = 3;
             tableAMD.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33F));
@@ -780,7 +780,7 @@ namespace GHelper
             // 
             // tableGPU
             // 
-            tableGPU.AutoSize = true;
+            tableGPU.AutoSize = false;
             tableGPU.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             tableGPU.ColumnCount = 4;
             tableGPU.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
@@ -1013,7 +1013,7 @@ namespace GHelper
             // 
             // tableScreen
             // 
-            tableScreen.AutoSize = true;
+            tableScreen.AutoSize = false;
             tableScreen.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             tableScreen.ColumnCount = 4;
             tableScreen.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
@@ -1212,7 +1212,7 @@ namespace GHelper
             // 
             // tableLayoutKeyboard
             // 
-            tableLayoutKeyboard.AutoSize = true;
+            tableLayoutKeyboard.AutoSize = false;
             tableLayoutKeyboard.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             tableLayoutKeyboard.ColumnCount = 3;
             tableLayoutKeyboard.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33F));
@@ -1382,7 +1382,7 @@ namespace GHelper
             // 
             // tableLayoutRearLight
             // 
-            tableLayoutRearLight.AutoSize = true;
+            tableLayoutRearLight.AutoSize = false;
             tableLayoutRearLight.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             tableLayoutRearLight.ColumnCount = 3;
             tableLayoutRearLight.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33F));
@@ -1620,7 +1620,7 @@ namespace GHelper
             // 
             // tableLayoutAlly
             // 
-            tableLayoutAlly.AutoSize = true;
+            tableLayoutAlly.AutoSize = false;
             tableLayoutAlly.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             tableLayoutAlly.ColumnCount = 3;
             tableLayoutAlly.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33F));
@@ -1769,7 +1769,7 @@ namespace GHelper
             // 
             // tableVisual
             // 
-            tableVisual.AutoSize = true;
+            tableVisual.AutoSize = false;
             tableVisual.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             tableVisual.ColumnCount = 3;
             tableVisual.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.3333321F));

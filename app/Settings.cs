@@ -67,6 +67,13 @@ namespace GHelper
             // Keep Designer AutoSize=true (shrinks to visible panels, no blank bottom). Previous fix set AutoSize=false
             // which left fixed 2075px ClientSize -> blank room when panels like Ally/RearLight hidden.
             // DoubleBuffered is already set by RForm.
+            // Sensor labels: fixed Size + Top|Right Anchor, AutoSize false avoids GetPreferredSize on every 1s RefreshSensors (5 layouts/sec -> 0)
+            labelCPUFan.AutoSize = false;
+            labelGPUFan.AutoSize = false;
+            labelMidFan.AutoSize = false;
+            labelBattery.AutoSize = false;
+            // labelCharge is inside panelBatteryTitle with similar fixed layout - keep false if present
+            try { labelCharge.AutoSize = false; } catch { }
             InitTheme(true);
 
             gpuControl = new GPUModeControl(this);
@@ -1419,12 +1426,17 @@ namespace GHelper
 
         public void VisualiseScreen(bool screenEnabled, bool screenAuto, int frequency, int maxFrequency, int overdrive, bool overdriveSetting, int miniled1, int miniled2, bool hdr, bool acm, int fhd, int hdrControl)
         {
-            bool advancedColor = hdr || acm;
+            // Batch 6 Visible + 4 Activated invalidates (was 6 layouts back-to-back = 70-120ms)
+            SuspendLayout();
+            tableScreen?.SuspendLayout();
+            try
+            {
+                bool advancedColor = hdr || acm;
 
-            ButtonEnabled(button60Hz, screenEnabled);
-            ButtonEnabled(button120Hz, screenEnabled);
-            ButtonEnabled(buttonScreenAuto, screenEnabled);
-            ButtonEnabled(buttonMiniled, screenEnabled);
+                ButtonEnabled(button60Hz, screenEnabled);
+                ButtonEnabled(button120Hz, screenEnabled);
+                ButtonEnabled(buttonScreenAuto, screenEnabled);
+                ButtonEnabled(buttonMiniled, screenEnabled);
 
             labelSreen.Text = screenEnabled
                 ? Properties.Strings.LaptopScreen + ": " + frequency + "Hz" + ((overdrive == 1) ? " + " + Properties.Strings.Overdrive : "")
@@ -1535,6 +1547,12 @@ namespace GHelper
                 labelVisual.Visible = false;
             }
 
+            }
+            finally
+            {
+                tableScreen?.ResumeLayout(false);
+                ResumeLayout(true);
+            }
 
         }
 
@@ -1691,17 +1709,26 @@ namespace GHelper
             if (Program.settingsForm.IsHandleCreated)
                 Program.settingsForm.BeginInvoke(delegate
                 {
-                    labelCPUFan.Text = "CPU" + cpuTemp + "  " + cpuFan;
-                    labelGPUFan.Text = "GPU" + gpuTemp + "  " + gpuFan;
+                    // Batch 5 label Text changes (each AutoSize would measure -> 5 layouts/sec). Suspend coalesces to 1.
+                    SuspendLayout();
+                    try
+                    {
+                        labelCPUFan.Text = "CPU" + cpuTemp + "  " + cpuFan;
+                        labelGPUFan.Text = "GPU" + gpuTemp + "  " + gpuFan;
 
-                    if (HardwareControl.gpuFan is not null && AppConfig.NoGpu())
-                        labelMidFan.Text = "GPU" + gpuTemp + " " + gpuFan;
+                        if (HardwareControl.gpuFan is not null && AppConfig.NoGpu())
+                            labelMidFan.Text = "GPU" + gpuTemp + " " + gpuFan;
 
-                    if (HardwareControl.midFan is not null) 
-                        labelMidFan.Text = "Mid " + midFan;
-                    
-                    labelBattery.Text = battery;
-                    if (!batteryMouseOver && !batteryFullMouseOver) labelCharge.Text = charge;
+                        if (HardwareControl.midFan is not null)
+                            labelMidFan.Text = "Mid " + midFan;
+
+                        labelBattery.Text = battery;
+                        if (!batteryMouseOver && !batteryFullMouseOver) labelCharge.Text = charge;
+                    }
+                    finally
+                    {
+                        ResumeLayout(false);
+                    }
                 });
 
             if (Program.trayIcon is not null) Program.trayIcon.Text = trayTip;
@@ -1755,40 +1782,51 @@ namespace GHelper
 
         protected void VisualiseMode(int mode)
         {
-            buttonSilent.Activated = false;
-            buttonBalanced.Activated = false;
-            buttonTurbo.Activated = false;
-            buttonFans.Activated = false;
-
-            switch (mode)
+            // Batch Activated invalidates (was 5 separate WM_PAINT) -> single coalesced paint
+            SuspendLayout();
+            tablePerf?.SuspendLayout();
+            try
             {
-                case AsusACPI.PerformanceSilent:
-                    buttonSilent.Activated = true;
-                    break;
-                case AsusACPI.PerformanceTurbo:
-                    buttonTurbo.Activated = true;
-                    break;
-                case AsusACPI.PerformanceBalanced:
-                    buttonBalanced.Activated = true;
-                    break;
-                default:
-                    buttonFans.Activated = true;
-                    buttonFans.BorderColor = Modes.GetBase(mode) switch
-                    {
-                        AsusACPI.PerformanceSilent => colorEco,
-                        AsusACPI.PerformanceTurbo => colorTurbo,
-                        AsusACPI.PerformanceFullSpeed => Color.Orange,
-                        _ => colorStandard,
-                    };
-                    break;
-            }
+                buttonSilent.Activated = false;
+                buttonBalanced.Activated = false;
+                buttonTurbo.Activated = false;
+                buttonFans.Activated = false;
 
-            foreach (var item in contextMenuStrip.Items)
-            {
-                if (item is ToolStripMenuItem menuItem && menuItem.Tag is not null)
+                switch (mode)
                 {
-                    menuItem.Checked = ((int)menuItem.Tag == mode);
+                    case AsusACPI.PerformanceSilent:
+                        buttonSilent.Activated = true;
+                        break;
+                    case AsusACPI.PerformanceTurbo:
+                        buttonTurbo.Activated = true;
+                        break;
+                    case AsusACPI.PerformanceBalanced:
+                        buttonBalanced.Activated = true;
+                        break;
+                    default:
+                        buttonFans.Activated = true;
+                        buttonFans.BorderColor = Modes.GetBase(mode) switch
+                        {
+                            AsusACPI.PerformanceSilent => colorEco,
+                            AsusACPI.PerformanceTurbo => colorTurbo,
+                            AsusACPI.PerformanceFullSpeed => Color.Orange,
+                            _ => colorStandard,
+                        };
+                        break;
                 }
+
+                foreach (var item in contextMenuStrip.Items)
+                {
+                    if (item is ToolStripMenuItem menuItem && menuItem.Tag is not null)
+                    {
+                        menuItem.Checked = ((int)menuItem.Tag == mode);
+                    }
+                }
+            }
+            finally
+            {
+                tablePerf?.ResumeLayout(false);
+                ResumeLayout(true);
             }
         }
 
@@ -1915,81 +1953,93 @@ namespace GHelper
         {
             if (InvokeRequired) { Invoke(() => VisualiseGPUMode(GPUMode)); return; }
 
-            if (toolTip.GetToolTip(pictureGPU) != (GPUModeControl.gpuError ?? ""))
+            SuspendLayout();
+            tableGPU?.SuspendLayout();
+            tableAMD?.SuspendLayout();
+            try
             {
-                pictureGPU.BackgroundImage = GPUModeControl.gpuError is null ? Properties.Resources.icons8_video_card_32 : SystemIcons.Warning.ToBitmap();
-                pictureGPU.Cursor = GPUModeControl.gpuError is null ? Cursors.Default : Cursors.Hand;
-                toolTip.SetToolTip(pictureGPU, GPUModeControl.gpuError);
-            }
-
-            if (AppConfig.IsAlly())
-            {
-                tableGPU.Visible = false;
-                labelGPU.Text = "GPU";
-                if (Program.acpi.IsXGConnected())
+                if (toolTip.GetToolTip(pictureGPU) != (GPUModeControl.gpuError ?? ""))
                 {
-                    tableAMD.Controls.Add(buttonXGM, 1, 0);
-                    VisualizeXGM();
+                    pictureGPU.BackgroundImage = GPUModeControl.gpuError is null ? Properties.Resources.icons8_video_card_32 : SystemIcons.Warning.ToBitmap();
+                    pictureGPU.Cursor = GPUModeControl.gpuError is null ? Cursors.Default : Cursors.Hand;
+                    toolTip.SetToolTip(pictureGPU, GPUModeControl.gpuError);
                 }
+
+                if (AppConfig.IsAlly())
+                {
+                    tableGPU.Visible = false;
+                    labelGPU.Text = "GPU";
+                    if (Program.acpi.IsXGConnected())
+                    {
+                        tableAMD.Controls.Add(buttonXGM, 1, 0);
+                        VisualizeXGM();
+                    }
+                    VisualiseIcon();
+                    return;
+                }
+
+                ButtonEnabled(buttonOptimized, true);
+                ButtonEnabled(buttonEco, true);
+                ButtonEnabled(buttonStandard, true);
+                ButtonEnabled(buttonUltimate, true);
+
+                if (GPUMode == -1)
+                    GPUMode = AppConfig.Get("gpu_mode");
+
+                bool GPUAuto = AppConfig.Is("gpu_auto");
+
+                buttonEco.Activated = false;
+                buttonStandard.Activated = false;
+                buttonUltimate.Activated = false;
+                buttonOptimized.Activated = false;
+
+                switch (GPUMode)
+                {
+                    case AsusACPI.GPUModeEco:
+                        buttonOptimized.BorderColor = colorEco;
+                        buttonEco.Activated = !GPUAuto;
+                        buttonOptimized.Activated = GPUAuto;
+                        labelGPU.Text = Properties.Strings.GPUMode + ": " + Properties.Strings.GPUModeEco;
+                        panelGPU.AccessibleName = Properties.Strings.GPUMode + " - " + (GPUAuto ? Properties.Strings.Optimized : Properties.Strings.EcoMode);
+                        break;
+                    case AsusACPI.GPUModeUltimate:
+                        buttonUltimate.Activated = true;
+                        labelGPU.Text = Properties.Strings.GPUMode + ": " + Properties.Strings.GPUModeUltimate;
+                        panelGPU.AccessibleName = Properties.Strings.GPUMode + " - " + Properties.Strings.UltimateMode;
+                        break;
+                    default:
+                        buttonOptimized.BorderColor = colorStandard;
+                        buttonStandard.Activated = !GPUAuto;
+                        buttonOptimized.Activated = GPUAuto;
+                        labelGPU.Text = Properties.Strings.GPUMode + ": " + (AppConfig.IsAlwaysUltimate() ? Properties.Strings.GPUModeUltimate : Properties.Strings.GPUModeStandard);
+                        panelGPU.AccessibleName = Properties.Strings.GPUMode + " - " + (GPUAuto ? Properties.Strings.Optimized : Properties.Strings.StandardMode);
+                        break;
+                }
+
                 VisualiseIcon();
-                return;
+                VisualizeXGM(GPUMode);
+
+                if (isGpuSection)
+                {
+                    menuEco.Checked = buttonEco.Activated;
+                    menuStandard.Checked = buttonStandard.Activated;
+                    menuUltimate.Checked = buttonUltimate.Activated;
+                    menuOptimized.Checked = buttonOptimized.Activated;
+                }
+
+                // UI Fix for small screeens
+                if (Top < 0)
+                {
+                    labelTipGPU.Visible = false;
+                    labelTipScreen.Visible = false;
+                    Top = 5;
+                }
             }
-
-            ButtonEnabled(buttonOptimized, true);
-            ButtonEnabled(buttonEco, true);
-            ButtonEnabled(buttonStandard, true);
-            ButtonEnabled(buttonUltimate, true);
-
-            if (GPUMode == -1)
-                GPUMode = AppConfig.Get("gpu_mode");
-
-            bool GPUAuto = AppConfig.Is("gpu_auto");
-
-            buttonEco.Activated = false;
-            buttonStandard.Activated = false;
-            buttonUltimate.Activated = false;
-            buttonOptimized.Activated = false;
-
-            switch (GPUMode)
+            finally
             {
-                case AsusACPI.GPUModeEco:
-                    buttonOptimized.BorderColor = colorEco;
-                    buttonEco.Activated = !GPUAuto;
-                    buttonOptimized.Activated = GPUAuto;
-                    labelGPU.Text = Properties.Strings.GPUMode + ": " + Properties.Strings.GPUModeEco;
-                    panelGPU.AccessibleName = Properties.Strings.GPUMode + " - " + (GPUAuto ? Properties.Strings.Optimized : Properties.Strings.EcoMode);
-                    break;
-                case AsusACPI.GPUModeUltimate:
-                    buttonUltimate.Activated = true;
-                    labelGPU.Text = Properties.Strings.GPUMode + ": " + Properties.Strings.GPUModeUltimate;
-                    panelGPU.AccessibleName = Properties.Strings.GPUMode + " - " + Properties.Strings.UltimateMode;
-                    break;
-                default:
-                    buttonOptimized.BorderColor = colorStandard;
-                    buttonStandard.Activated = !GPUAuto;
-                    buttonOptimized.Activated = GPUAuto;
-                    labelGPU.Text = Properties.Strings.GPUMode + ": " + (AppConfig.IsAlwaysUltimate() ? Properties.Strings.GPUModeUltimate : Properties.Strings.GPUModeStandard);
-                    panelGPU.AccessibleName = Properties.Strings.GPUMode + " - " + (GPUAuto ? Properties.Strings.Optimized : Properties.Strings.StandardMode);
-                    break;
-            }
-
-            VisualiseIcon();
-            VisualizeXGM(GPUMode);
-
-            if (isGpuSection)
-            {
-                menuEco.Checked = buttonEco.Activated;
-                menuStandard.Checked = buttonStandard.Activated;
-                menuUltimate.Checked = buttonUltimate.Activated;
-                menuOptimized.Checked = buttonOptimized.Activated;
-            }
-
-            // UI Fix for small screeens
-            if (Top < 0)
-            {
-                labelTipGPU.Visible = false;
-                labelTipScreen.Visible = false;
-                Top = 5;
+                tableAMD?.ResumeLayout(false);
+                tableGPU?.ResumeLayout(false);
+                ResumeLayout(true);
             }
 
         }
