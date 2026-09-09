@@ -489,8 +489,9 @@ namespace GHelper
                     settingsForm.PerformLayout();
                 }
 
-                // Sync refresh - deferred BeginInvoke caused blue background -> delayed content flash
-                settingsForm.VisualiseGPUMode();
+                // Deferred one frame lets WS_EX_COMPOSITED buffer complete atomically (first fix was best for white flash)
+                // Sync caused white boxes to be visible during composited paint
+                settingsForm.BeginInvoke(new Action(() => settingsForm.VisualiseGPUMode()));
             }
         }
 

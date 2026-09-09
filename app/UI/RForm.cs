@@ -82,11 +82,11 @@ namespace GHelper.UI
             {
                 var parms = base.CreateParams;
                 // Keep WS_CLIPCHILDREN (0x02000000) - prevents parent from over-painting child areas
-                // This alone fixes most progressive bottom-up tear without composited delay.
                 parms.Style |= 0x02000000;
-                // WS_EX_COMPOSITED removed: caused blue background delay + full 2075px off-screen buffer
-                // causing blank bottom area and visible two-phase paint (background then children).
-                // DoubleBuffered on form + children is enough; composited is overkill for this Tall form.
+                // First fix was best: WS_EX_COMPOSITED hides white sketch by buffering whole window off-screen
+                // then popping fully rendered. Keep it but with dark BackColor pre-fill + WM_ERASEBKGND suppression
+                // to avoid blue delay. Blank bottom was from AutoSize=false, not composited.
+                parms.ExStyle |= 0x02000000; // WS_EX_COMPOSITED
                 parms.ClassStyle &= ~0x00020000; // CS_DROPSHADOW off
                 return parms;
             }
