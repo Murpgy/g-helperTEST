@@ -63,6 +63,12 @@ namespace GHelper.UI
 
         protected override bool ShowFocusCues => false;
 
+        // Cached region to avoid HRGN churn on every WM_PAINT (major GDI pressure under high CPU)
+        private Region? _cachedRegion;
+        private Rectangle _cachedBounds;
+        private int _cachedRadius;
+        private int _cachedBorder;
+
         public RButton()
         {
             DoubleBuffered = true;
@@ -70,6 +76,35 @@ namespace GHelper.UI
             FlatAppearance.BorderSize = 0;
             BackColorChanged += (s, e) => UpdateHoverColor();
             UpdateHoverColor();
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.SupportsTransparentBackColor, true);
+        }
+
+        protected override void OnHandleDestroyed(EventArgs e)
+        {
+            _cachedRegion?.Dispose();
+            _cachedRegion = null;
+            base.OnHandleDestroyed(e);
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) _cachedRegion?.Dispose();
+            base.Dispose(disposing);
+        }
+
+        private void UpdateRegion(Rectangle rectSurface, int radius, int border)
+        {
+            if (_cachedRegion != null && _cachedBounds == rectSurface && _cachedRadius == radius && _cachedBorder == border)
+                return;
+            _cachedRegion?.Dispose();
+            using (var path = GetFigurePath(rectSurface, radius + border))
+            {
+                _cachedRegion = new Region(path);
+            }
+            _cachedBounds = rectSurface;
+            _cachedRadius = radius;
+            _cachedBorder = border;
+            Region = _cachedRegion;
         }
 
         private void UpdateHoverColor()
@@ -114,11 +149,14 @@ namespace GHelper.UI
 
             Rectangle rectSurface = ClientRectangle;
 
+            // Update cached HRGN only when size/DPI changes - not every paint
+            UpdateRegion(rectSurface, radius, border);
+
             using (GraphicsPath pathSurface = GetFigurePath(rectSurface, radius + border))
-            using (Pen penSurface = new Pen(Parent.BackColor, border))
+            using (Pen penSurface = new Pen(Parent?.BackColor ?? BackColor, border))
             {
                 pevent.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                Region = new Region(pathSurface);
+                // Region already set via cache
                 pevent.Graphics.DrawPath(penSurface, pathSurface);
 
                 bool drawActive = Enabled && !Borderless && activated && borderColor.A > 0;

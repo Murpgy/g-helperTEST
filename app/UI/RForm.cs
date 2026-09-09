@@ -39,13 +39,26 @@ namespace GHelper.UI
 
         public bool darkTheme = false;
         private bool themeInitialized = false;
+
+        public RForm()
+        {
+            // Reduce flicker / progressive paint: double-buffer whole form
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+            DoubleBuffered = true;
+            UpdateStyles();
+        }
+
         protected override CreateParams CreateParams
         {
             get
             {
                 var parms = base.CreateParams;
-                parms.Style &= ~0x02000000;  // Turn off WS_CLIPCHILDREN
-                parms.ClassStyle &= ~0x00020000;
+                // Keep WS_CLIPCHILDREN (0x02000000) - prevents parent from over-painting child areas
+                parms.Style |= 0x02000000;
+                // WS_EX_COMPOSITED (0x02000000) double-buffers all children in off-screen buffer -> no bottom-up tear.
+                // Safe for this form: no MDI, not layered. Disable if you see TopMost flicker on some drivers.
+                parms.ExStyle |= 0x02000000;
+                parms.ClassStyle &= ~0x00020000; // CS_DROPSHADOW off
                 return parms;
             }
         }

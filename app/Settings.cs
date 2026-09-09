@@ -61,8 +61,16 @@ namespace GHelper
 
         public SettingsForm()
         {
-
+            // Suspend layout during heavy init: prevents 13x TableLayoutPanel measure on every property set
+            SuspendLayout();
             InitializeComponent();
+            // Override Designer AutoSize/GrowAndShrink which forces 2075px full measure on every Show() under high CPU.
+            // Keep visual but allow scrolling instead of forcing full height layout pass.
+            // Designer sets AutoSize=true which together with Dock.Top causes O(n^2) layout. We keep it false at runtime.
+            AutoSize = false;
+            AutoScroll = true;
+            // Keep DPI scaling but avoid re-measuring off-screen panels every frame
+            DoubleBuffered = true;
             InitTheme(true);
 
             gpuControl = new GPUModeControl(this);
@@ -302,6 +310,8 @@ namespace GHelper
 
             panelPerformance.Focus();
             InitVisual();
+            ResumeLayout(false);
+            PerformLayout();
         }
 
         private void ButtonArmoury_Click(object? sender, EventArgs e)
@@ -1564,9 +1574,12 @@ namespace GHelper
         /// </summary>
         public void ShowAll()
         {
-            this.Activate();
-            this.TopMost = true;
-            this.TopMost = AppConfig.Is("topmost");
+            // Avoid TopMost true->false thrash (2 WM_WINDOWPOSCHANGED + 2 layouts) - just activate
+            bool wantTopMost = AppConfig.Is("topmost");
+            if (TopMost != wantTopMost) TopMost = wantTopMost;
+            Activate();
+            // Bring to front without extra style toggle
+            if (!wantTopMost) BringToFront();
         }
 
         public DialogResult ShowMessage(string text, string title = "", MessageBoxButtons buttons = MessageBoxButtons.OK)

@@ -242,9 +242,11 @@ namespace GHelper.UI
                 SelectClipRgn(dc, rgn);
                 DefWndProc(ref m);
                 DeleteObject(rgn);
+                // Reset clip to entire client area before custom border draw
                 rgn = CreateRectRgn(clientRect.Left, clientRect.Top,
                     clientRect.Right, clientRect.Bottom);
                 SelectClipRgn(dc, rgn);
+                DeleteObject(rgn);
 
                 using (var g = Graphics.FromHdc(dc))
                 {
@@ -262,7 +264,8 @@ namespace GHelper.UI
                 }
                 if (shoulEndPaint)
                     EndPaint(Handle, ref ps);
-                DeleteObject(rgn);
+                // Final clip reset: restore no clip (NULL region) to avoid GDI leak/stale clip on next WM_PAINT
+                SelectClipRgn(dc, nint.Zero);
             }
             else
                 base.WndProc(ref m);

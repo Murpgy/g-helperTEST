@@ -439,23 +439,39 @@ namespace GHelper
                 var screen = Screen.PrimaryScreen;
                 if (screen is null) screen = Screen.FromControl(settingsForm);
 
-                settingsForm.WindowState = FormWindowState.Normal;
+                // Single layout pass: suspend, position off-screen, show, then place correctly.
+                // Old code did Location -> Show -> ShowAll(TopMost toggle) -> Location again -> VisualiseGPUMode(),
+                // causing 3-4 layouts and visible bottom-up progressive paint under high CPU.
+                settingsForm.SuspendLayout();
+                try
+                {
+                    settingsForm.WindowState = FormWindowState.Normal;
 
-                settingsForm.Location = screen.WorkingArea.Location;
-                settingsForm.Left = screen.WorkingArea.Width - 10 - settingsForm.Width;
-                settingsForm.Top = screen.WorkingArea.Height - 10 - settingsForm.Height;
+                    // Position while invisible (suspended) - single final placement
+                    int left = screen.WorkingArea.Width - 10 - settingsForm.Width;
+                    int top;
+                    if (AppConfig.IsAlly())
+                        top = Math.Max(10, screen.Bounds.Height - 110 - settingsForm.Height);
+                    else
+                        top = screen.WorkingArea.Height - 10 - settingsForm.Height;
 
-                settingsForm.Show();
-                settingsForm.ShowAll();
+                    // Pre-set bounds before Show to avoid intermediate WM_WINDOWPOSCHANGED
+                    settingsForm.Location = new Point(left, top);
 
-                settingsForm.Left = screen.WorkingArea.Width - 10 - settingsForm.Width;
+                    settingsForm.Show();
+                    // Activate without TopMost thrash (ShowAll toggles TopMost true/false -> 2 extra layouts)
+                    settingsForm.Activate();
+                    if (AppConfig.Is("topmost")) settingsForm.TopMost = true;
+                    else settingsForm.TopMost = false;
+                }
+                finally
+                {
+                    settingsForm.ResumeLayout(false);
+                    settingsForm.PerformLayout();
+                }
 
-                if (AppConfig.IsAlly())
-                    settingsForm.Top = Math.Max(10, screen.Bounds.Height - 110 - settingsForm.Height);
-                else
-                    settingsForm.Top = screen.WorkingArea.Height - 10 - settingsForm.Height;
-
-                settingsForm.VisualiseGPUMode();
+                // Defer heavy visual refresh one frame so paint can complete atomically (composited buffer)
+                settingsForm.BeginInvoke(new Action(() => settingsForm.VisualiseGPUMode()));
             }
         }
 
